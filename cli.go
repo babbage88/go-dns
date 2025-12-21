@@ -14,30 +14,27 @@ var zshCompletion string
 
 // ───────── kong CLI struct for flag parsing ─────────
 
+type CLI struct {
+	CleanZones      CleanZonesCmd      `cmd:"" help:"Clean and validate DNS zones"`
+	ShellCompletion ShellCompletionCmd `cmd:"" help:"Generate shell completion script"`
+}
+
+type CleanZonesCmd struct {
+	File    string        `help:"YAML file to process" required:""`
+	Timeout time.Duration `help:"Ping timeout" default:"2s"`
+	Workers int           `help:"Number of parallel ping workers" default:"8"`
+	DryRun  bool          `help:"Do not modify output"`
+}
+
 type ShellCompletionCmd struct {
 	Shell string `arg:"" enum:"bash,zsh" help:"Shell type"`
 }
 
-type CLI struct {
-	File    string        `arg:"" optional:"" help:"YAML file to process"`
-	Timeout time.Duration `help:"Ping timeout" default:"2s"`
-	Workers int           `help:"Number of parallel ping workers" default:"8"`
-	DryRun  bool          `help:"Do not modify output"`
-
-	ShellCompletion ShellCompletionCmd `cmd:"" help:"Generate shell completion script"`
-}
-
-func (c *CLI) MaybePrintShellCompletion() bool {
-	if c.ShellCompletion.Shell == "" {
-		return false
-	}
-
-	switch c.ShellCompletion.Shell {
+func (c *ShellCompletionCmd) Print() {
+	switch c.Shell {
 	case "bash":
 		fmt.Print(bashCompletion)
 	case "zsh":
 		fmt.Print(zshCompletion)
 	}
-
-	return true
 }

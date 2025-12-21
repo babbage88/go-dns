@@ -21,17 +21,24 @@ func main() {
 	var cli CLI
 	kong.Parse(&cli)
 
-	if cli.MaybePrintShellCompletion() {
+	// ─── shell completion subcommand ─────────────────────────────
+	if cli.ShellCompletion.Shell != "" {
+		cli.ShellCompletion.Print()
 		return
 	}
 
-	// read input file
-	data, err := os.ReadFile(cli.File)
+	// ─── clean-zones subcommand ──────────────────────────────────
+	run := cli.CleanZones
+	if run.File == "" {
+		// kong already prints help, just exit cleanly
+		return
+	}
+
+	data, err := os.ReadFile(run.File)
 	if err != nil {
 		panic(err)
 	}
 
-	// parse YAML with comments preserved
 	file, err := parser.ParseBytes(data, parser.ParseComments)
 	if err != nil {
 		panic(err)
@@ -39,13 +46,10 @@ func main() {
 
 	root := file.Docs[0].Body.(*ast.MappingNode)
 
-	// collect ping jobs
 	nsJobs := collectNameserverJobs(root)
 	dnsJobs := collectDNSRecordJobs(root)
-
 	allJobs := append(nsJobs, dnsJobs...)
 
-	// setup SIGINT / SIGTERM cancellation
 	ctx, stop := signal.NotifyContext(
 		context.Background(),
 		os.Interrupt,
@@ -53,32 +57,27 @@ func main() {
 	)
 	defer stop()
 
-	// run parallel pings
 	results := runPingWorkers(
 		ctx,
 		allJobs,
-		cli.Timeout,
-		cli.Workers,
+		run.Timeout,
+		run.Workers,
 	)
 
-	// apply results SINGLE-THREADED
+	// apply results single-threaded
 	for _, r := range results {
-		if r.ok {
-			continue
+		if !r.ok {
+			commentOut(r.job.Node, "unreachable")
 		}
-
-		commentOut(r.job.Node, "unreachable")
 	}
 
-	// generate missing PTRs (unchanged)
 	createMissingPTRs(root)
 
-	if cli.DryRun {
+	if run.DryRun {
 		fmt.Println("# dry-run enabled, no output written")
 		return
 	}
 
-	// write output
 	out, err := yaml.Marshal(file)
 	if err != nil {
 		panic(err)
