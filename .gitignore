@@ -5,6 +5,10 @@
 *.so
 *.dylib
 
+# yaml from homelab
+vars.yaml
+
+
 # Test binary, built with `go test -c`
 *.test
 

@@ -27,7 +27,6 @@ func ping(ip string, timeout time.Duration) bool {
 type pingJob struct {
 	IP   string
 	Node ast.Node
-	Why  string
 }
 
 type pingResult struct {
@@ -104,9 +103,10 @@ func runPingWorkers(
 	return results
 }
 
-// ───────── Collect Nameserver and DNSRecord pingJobs ─────────
 func collectNameserverJobs(root *ast.MappingNode) []pingJob {
 	var jobs []pingJob
+
+	seenIPs := make(map[string]struct{})
 
 	for _, mv := range root.Values {
 		key := mv.Key.(*ast.StringNode).Value
@@ -117,14 +117,22 @@ func collectNameserverJobs(root *ast.MappingNode) []pingJob {
 		seq := mv.Value.(*ast.SequenceNode)
 		for _, item := range seq.Values {
 			m := item.(*ast.MappingNode)
+
 			ip := stringValue(m, "ip_address")
-			if ip != "" {
-				jobs = append(jobs, pingJob{
-					IP:   ip,
-					Node: item,
-					Why:  "nameserver unreachable",
-				})
+			if ip == "" {
+				continue
 			}
+
+			if _, alreadySeen := seenIPs[ip]; alreadySeen {
+				continue
+			}
+
+			seenIPs[ip] = struct{}{}
+
+			jobs = append(jobs, pingJob{
+				IP:   ip,
+				Node: item,
+			})
 		}
 	}
 
@@ -133,6 +141,8 @@ func collectNameserverJobs(root *ast.MappingNode) []pingJob {
 
 func collectDNSRecordJobs(root *ast.MappingNode) []pingJob {
 	var jobs []pingJob
+
+	seenIPs := make(map[string]struct{})
 
 	for _, section := range []string{"dns_records", "sub_zone_records"} {
 		n := mappingValue(root, section)
@@ -143,9 +153,9 @@ func collectDNSRecordJobs(root *ast.MappingNode) []pingJob {
 		seq := n.(*ast.SequenceNode)
 		for _, item := range seq.Values {
 			m := item.(*ast.MappingNode)
-			typ := stringValue(m, "type")
 
-			if typ != "A" && typ != "AAAA" {
+			recordType := stringValue(m, "type")
+			if recordType != "A" && recordType != "AAAA" {
 				continue
 			}
 
@@ -154,10 +164,15 @@ func collectDNSRecordJobs(root *ast.MappingNode) []pingJob {
 				continue
 			}
 
+			if _, alreadySeen := seenIPs[ip]; alreadySeen {
+				continue
+			}
+
+			seenIPs[ip] = struct{}{}
+
 			jobs = append(jobs, pingJob{
 				IP:   ip,
 				Node: item,
-				Why:  "record unreachable",
 			})
 		}
 	}
