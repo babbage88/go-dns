@@ -26,15 +26,22 @@ func stringValue(m *ast.MappingNode, key string) string {
 	return n.(*ast.StringNode).Value
 }
 
-func commentOut(node ast.Node, reason string) {
-	node.SetComment(
-		ast.CommentGroup(
-			[]*token.Token{
-				{
-					Type:  token.CommentType,
-					Value: "# DISABLED: " + reason,
-				},
+func commentOut(n ast.Node, reason string) {
+	if n == nil {
+		return
+	}
+
+	text := "DISABLED"
+	if reason != "" {
+		text = "DISABLED: " + reason
+	}
+
+	n.SetComment(
+		ast.CommentGroup([]*token.Token{
+			{
+				Type:  token.CommentType,
+				Value: "# " + text,
 			},
-		),
+		}),
 	)
 }

@@ -3,6 +3,7 @@ package main
 import (
 	_ "embed"
 	"fmt"
+	"os"
 	"time"
 )
 
@@ -31,6 +32,12 @@ type CompletionCmd struct {
 }
 
 func (c *CompletionCmd) Print() {
+	fmt.Fprintln(os.Stderr, `
+# To enable:
+#   bash: source <(dnsctl completion bash)
+#   zsh : source <(dnsctl completion zsh)
+`)
+
 	switch c.Shell {
 	case "bash":
 		fmt.Print(bashCompletion)
