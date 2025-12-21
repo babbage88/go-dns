@@ -2,14 +2,12 @@ package main
 
 import (
 	"fmt"
-	"net"
 	"os"
 
 	"github.com/alecthomas/kong"
 	"github.com/goccy/go-yaml"
 	"github.com/goccy/go-yaml/ast"
 	"github.com/goccy/go-yaml/parser"
-	"github.com/goccy/go-yaml/token"
 )
 
 //
@@ -59,102 +57,6 @@ func main() {
 	}
 
 	fmt.Println(string(out))
-}
-
-//
-// ─── YAML HELPERS ──────────────────────────────────────────────────────────────
-//
-
-func mappingValue(m *ast.MappingNode, key string) ast.Node {
-	for _, mv := range m.Values {
-		if mv.Key.(*ast.StringNode).Value == key {
-			return mv.Value
-		}
-	}
-	return nil
-}
-
-func stringValue(m *ast.MappingNode, key string) string {
-	n := mappingValue(m, key)
-	if n == nil {
-		return ""
-	}
-	return n.(*ast.StringNode).Value
-}
-
-func commentOut(node ast.Node, reason string) {
-	node.SetComment(
-		ast.CommentGroup(
-			[]*token.Token{
-				{
-					Type:  token.CommentType,
-					Value: "# DISABLED: " + reason,
-				},
-			},
-		),
-	)
-}
-
-//
-// ─── STEP 3: PTR GENERATION ────────────────────────────────────────────────────
-//
-
-func createMissingPTRs(root *ast.MappingNode) {
-	dnsNode := mappingValue(root, "dns_records")
-	if dnsNode == nil {
-		return
-	}
-
-	seq := dnsNode.(*ast.SequenceNode)
-
-	existing := map[string]bool{}
-	for _, item := range seq.Values {
-		m := item.(*ast.MappingNode)
-		if stringValue(m, "type") == "PTR" {
-			key := stringValue(m, "zone") + ":" + stringValue(m, "record_value")
-			existing[key] = true
-		}
-	}
-
-	for _, item := range seq.Values {
-		m := item.(*ast.MappingNode)
-		if stringValue(m, "type") != "A" {
-			continue
-		}
-
-		ip := net.ParseIP(stringValue(m, "record_value"))
-		if ip == nil || ip.To4() == nil {
-			continue
-		}
-
-		ip4 := ip.To4()
-		var zone string
-		switch ip4[2] {
-		case 0:
-			zone = "0.0.10.in-addr.arpa."
-		case 1:
-			zone = "1.0.10.in-addr.arpa."
-		default:
-			continue
-		}
-
-		last := fmt.Sprintf("%d", ip4[3])
-		key := zone + ":" + last
-		if existing[key] {
-			continue
-		}
-
-		ptr := &ast.MappingNode{
-			Values: []*ast.MappingValueNode{
-				kv("host", stringValue(m, "host")),
-				kv("type", "PTR"),
-				kv("zone", zone),
-				kv("record_value", last),
-			},
-		}
-
-		seq.Values = append(seq.Values, ptr)
-	}
 }
 
 func kv(k, v string) *ast.MappingValueNode {
