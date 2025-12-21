@@ -1,8 +1,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/alecthomas/kong"
 	"github.com/goccy/go-yaml"
@@ -35,7 +38,10 @@ func main() {
 
 	allJobs := append(nsJobs, dnsJobs...)
 
-	results := runPingWorkers(allJobs, cli.Timeout, cli.Workers)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	results := runPingWorkers(ctx, allJobs, cli.Timeout, cli.Workers)
 
 	// Apply results SINGLE-THREADED
 	for _, r := range results {

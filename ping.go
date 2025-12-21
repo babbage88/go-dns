@@ -33,6 +33,7 @@ type pingResult struct {
 }
 
 func runPingWorkers(
+	ctx context.Context,
 	jobs []pingJob,
 	timeout time.Duration,
 	workers int,
@@ -44,24 +45,42 @@ func runPingWorkers(
 	// workers
 	for i := 0; i < workers; i++ {
 		go func() {
-			for job := range jobCh {
-				ok := ping(job.IP, timeout)
-				resCh <- pingResult{job: job, ok: ok}
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case job, ok := <-jobCh:
+					if !ok {
+						return
+					}
+					okPing := ping(job.IP, timeout)
+					resCh <- pingResult{job: job, ok: okPing}
+				}
 			}
 		}()
+
 	}
 
 	// feed jobs
 	go func() {
+		defer close(jobCh)
 		for _, j := range jobs {
-			jobCh <- j
+			select {
+			case <-ctx.Done():
+				return
+			case jobCh <- j:
+			}
 		}
-		close(jobCh)
 	}()
 
 	results := make([]pingResult, 0, len(jobs))
 	for i := 0; i < len(jobs); i++ {
-		results = append(results, <-resCh)
+		select {
+		case <-ctx.Done():
+			return results
+		case res := <-resCh:
+			results = append(results, res)
+		}
 	}
 
 	return results
