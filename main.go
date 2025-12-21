@@ -22,8 +22,8 @@ func main() {
 	kong.Parse(&cli)
 
 	// ─── shell completion subcommand ─────────────────────────────
-	if cli.ShellCompletion.Shell != "" {
-		cli.ShellCompletion.Print()
+	if cli.Completion.Shell != "" {
+		cli.Completion.Print()
 		return
 	}
 

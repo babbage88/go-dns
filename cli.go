@@ -15,8 +15,8 @@ var zshCompletion string
 // ───────── kong CLI struct for flag parsing ─────────
 
 type CLI struct {
-	CleanZones      CleanZonesCmd      `cmd:"" help:"Clean and validate DNS zones"`
-	ShellCompletion ShellCompletionCmd `cmd:"" help:"Generate shell completion script"`
+	CleanZones CleanZonesCmd `cmd:"" help:"Clean and validate DNS zones"`
+	Completion CompletionCmd `cmd:"" help:"Generate shell completion script"`
 }
 
 type CleanZonesCmd struct {
@@ -26,11 +26,11 @@ type CleanZonesCmd struct {
 	DryRun  bool          `help:"Do not modify output"`
 }
 
-type ShellCompletionCmd struct {
+type CompletionCmd struct {
 	Shell string `arg:"" enum:"bash,zsh" help:"Shell type"`
 }
 
-func (c *ShellCompletionCmd) Print() {
+func (c *CompletionCmd) Print() {
 	switch c.Shell {
 	case "bash":
 		fmt.Print(bashCompletion)
