@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"os/exec"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/goccy/go-yaml/ast"
@@ -42,6 +45,9 @@ func runPingWorkers(
 	jobCh := make(chan pingJob)
 	resCh := make(chan pingResult)
 
+	var completed int64
+	total := int64(len(jobs))
+
 	// workers
 	for i := 0; i < workers; i++ {
 		go func() {
@@ -53,12 +59,18 @@ func runPingWorkers(
 					if !ok {
 						return
 					}
+
 					okPing := ping(job.IP, timeout)
+
+					// send result
 					resCh <- pingResult{job: job, ok: okPing}
+
+					// progress update (stderr only)
+					n := atomic.AddInt64(&completed, 1)
+					fmt.Fprintf(os.Stderr, "\rPinging: %d/%d", n, total)
 				}
 			}
 		}()
-
 	}
 
 	// feed jobs
@@ -74,14 +86,20 @@ func runPingWorkers(
 	}()
 
 	results := make([]pingResult, 0, len(jobs))
+
 	for i := 0; i < len(jobs); i++ {
 		select {
 		case <-ctx.Done():
+			fmt.Fprintln(os.Stderr) // newline before exit
 			return results
+
 		case res := <-resCh:
 			results = append(results, res)
 		}
 	}
+
+	// finish progress line cleanly
+	fmt.Fprintln(os.Stderr)
 
 	return results
 }
