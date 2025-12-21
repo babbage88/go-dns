@@ -1,13 +1,9 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"os"
-	"os/exec"
-	"strings"
-	"time"
 
 	"github.com/alecthomas/kong"
 	"github.com/goccy/go-yaml"
@@ -15,16 +11,6 @@ import (
 	"github.com/goccy/go-yaml/parser"
 	"github.com/goccy/go-yaml/token"
 )
-
-//
-// ─── CLI ───────────────────────────────────────────────────────────────────────
-//
-
-type CLI struct {
-	File    string        `arg:"" required:"" help:"YAML file to process"`
-	Timeout time.Duration `help:"Ping timeout" default:"2s"`
-	DryRun  bool          `help:"Do not modify output"`
-}
 
 //
 // ─── MAIN ──────────────────────────────────────────────────────────────────────
@@ -46,8 +32,20 @@ func main() {
 
 	root := file.Docs[0].Body.(*ast.MappingNode)
 
-	handleNameservers(root, cli.Timeout)
-	handleDNSRecords(root, cli.Timeout)
+	nsJobs := collectNameserverJobs(root)
+	dnsJobs := collectDNSRecordJobs(root)
+
+	allJobs := append(nsJobs, dnsJobs...)
+
+	results := runPingWorkers(allJobs, cli.Timeout, cli.Workers)
+
+	// Apply results SINGLE-THREADED
+	for _, r := range results {
+		if !r.ok {
+			commentOut(r.job.Node, r.job.Why)
+		}
+	}
+
 	createMissingPTRs(root)
 
 	if cli.DryRun {
@@ -61,18 +59,6 @@ func main() {
 	}
 
 	fmt.Println(string(out))
-}
-
-//
-// ─── PING ───────────────────────────────────────────────────────────────────────
-//
-
-func ping(ip string, timeout time.Duration) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	cmd := exec.CommandContext(ctx, "ping", "-c", "1", "-W", "1", ip)
-	return cmd.Run() == nil
 }
 
 //
@@ -107,54 +93,6 @@ func commentOut(node ast.Node, reason string) {
 			},
 		),
 	)
-}
-
-//
-// ─── STEP 1: NAMESERVERS ───────────────────────────────────────────────────────
-//
-
-func handleNameservers(root *ast.MappingNode, timeout time.Duration) {
-	for _, mv := range root.Values {
-		key := mv.Key.(*ast.StringNode).Value
-		if !strings.HasPrefix(key, "nameservers") {
-			continue
-		}
-
-		seq := mv.Value.(*ast.SequenceNode)
-		for _, item := range seq.Values {
-			m := item.(*ast.MappingNode)
-			ip := stringValue(m, "ip_address")
-			if ip != "" && !ping(ip, timeout) {
-				commentOut(item, "nameserver unreachable")
-			}
-		}
-	}
-}
-
-//
-// ─── STEP 2: DNS RECORDS ───────────────────────────────────────────────────────
-//
-
-func handleDNSRecords(root *ast.MappingNode, timeout time.Duration) {
-	for _, section := range []string{"dns_records", "sub_zone_records"} {
-		n := mappingValue(root, section)
-		if n == nil {
-			continue
-		}
-
-		seq := n.(*ast.SequenceNode)
-		for _, item := range seq.Values {
-			m := item.(*ast.MappingNode)
-			typ := stringValue(m, "type")
-
-			if typ == "A" || typ == "AAAA" {
-				ip := stringValue(m, "record_value")
-				if ip != "" && !ping(ip, timeout) {
-					commentOut(item, "record unreachable")
-				}
-			}
-		}
-	}
 }
 
 //
