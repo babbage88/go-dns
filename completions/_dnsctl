@@ -1,0 +1,35 @@
+#compdef _dnsctl dnsctl
+
+_dnsctl() {
+  local -a line
+
+  _arguments -C \
+        "-h[Show help information]" \
+        "--help[Show help information]" \
+        "1: :(clean-zones completion)" \
+        "*::arg:->args"
+
+  case $line[1] in
+    clean-zones)
+      _dnsctl_clean-zones
+    ;;
+    completion)
+      _dnsctl_completion
+    ;;
+  esac
+}
+
+_dnsctl_clean-zones() {
+  _arguments \
+    '--file=[Path to YAML file]:file:_files' \
+    '--timeout=[Ping timeout]' \
+    '--workers=[Number of workers]' \
+    '--dry-run[Do not write output]'
+}
+
+_dnsctl_completion() {
+  _arguments \
+    '1:shell:(bash zsh)'
+}
+
+compdef _dnsctl dnsctl
