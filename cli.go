@@ -3,14 +3,13 @@ package main
 import (
 	_ "embed"
 	"fmt"
-	"os"
 	"time"
 )
 
-//go:embed completions/bash.sh
+//go:embed completions/dnsctl.bash
 var bashCompletion string
 
-//go:embed completions/zsh.sh
+//go:embed completions/_dnsctl.zsh
 var zshCompletion string
 
 // ───────── kong CLI struct for flag parsing ─────────
@@ -32,12 +31,6 @@ type CompletionCmd struct {
 }
 
 func (c *CompletionCmd) Print() {
-	fmt.Fprintln(os.Stderr, `
-# To enable:
-#   bash: source <(dnsctl completion bash)
-#   zsh : source <(dnsctl completion zsh)
-`)
-
 	switch c.Shell {
 	case "bash":
 		fmt.Print(bashCompletion)
