@@ -10,34 +10,28 @@
 #   fpath=(~/.zsh/completions $fpath)
 
 _dnsctl() {
-  local -a subcommands
+  local -a commands
   
-  subcommands=(
+  commands=(
     'clean-zones:Clean and validate DNS zones'
     'completion:Generate shell completion script'
   )
   
-  _arguments \
-    '1: :->command' \
-    '*::arg:->args'
+  if (( CURRENT == 2 )); then
+    _describe -t commands 'dnsctl command' commands
+    return
+  fi
   
-  case $state in
-    command)
-      _describe 'command' subcommands
+  case "${words[2]}" in
+    clean-zones)
+      _arguments \
+        '(--file)--file[YAML file to process]:file:_files' \
+        '(--timeout)--timeout[Ping timeout]:duration:(1s 2s 5s 10s)' \
+        '(--workers)--workers[Number of parallel ping workers]:count:(1 2 4 8 16)' \
+        '(--dry-run)--dry-run[Do not modify output]'
       ;;
-    args)
-      case ${words[2]} in
-        clean-zones)
-          _arguments \
-            '--file[YAML file to process]:file:_files' \
-            '--timeout[Ping timeout (default: 2s)]:duration:(1s 2s 5s 10s)' \
-            '--workers[Number of parallel ping workers (default: 8)]:count:(1 2 4 8 16)' \
-            '--dry-run[Do not modify output]'
-          ;;
-        completion)
-          _arguments '1: :(bash zsh)'
-          ;;
-      esac
+    completion)
+      _arguments '1: :(bash zsh)'
       ;;
   esac
 }
