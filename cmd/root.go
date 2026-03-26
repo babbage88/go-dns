@@ -60,6 +60,7 @@ func init() {
 	rootCmd.AddCommand(cleanZonesCmd, completionCmd)
 }
 
+// Execute runs the root command.
 func Execute() error {
 	return rootCmd.Execute()
 }

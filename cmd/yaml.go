@@ -5,10 +5,7 @@ import (
 	"github.com/goccy/go-yaml/token"
 )
 
-//
-// ─── YAML HELPERS ──────────────────────────────────────────────────────────────
-//
-
+// mappingValue retrieves the value associated with the given key from a YAML mapping node.
 func mappingValue(m *ast.MappingNode, key string) ast.Node {
 	for _, mv := range m.Values {
 		if mv.Key.(*ast.StringNode).Value == key {
@@ -18,6 +15,7 @@ func mappingValue(m *ast.MappingNode, key string) ast.Node {
 	return nil
 }
 
+// stringValue retrieves the string value associated with the given key from a YAML mapping node.
 func stringValue(m *ast.MappingNode, key string) string {
 	n := mappingValue(m, key)
 	if n == nil {
@@ -26,6 +24,7 @@ func stringValue(m *ast.MappingNode, key string) string {
 	return n.(*ast.StringNode).Value
 }
 
+// commentOut adds a DISABLED comment to the given YAML node with an optional reason.
 func commentOut(n ast.Node, reason string) {
 	if n == nil {
 		return

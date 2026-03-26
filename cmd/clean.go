@@ -13,6 +13,8 @@ import (
 	"github.com/goccy/go-yaml/parser"
 )
 
+// runCleanZones reads a YAML file, validates DNS records and nameservers by pinging them,
+// comments out unreachable entries, and generates PTR records for A records.
 func runCleanZones(filePath string, pingTimeout time.Duration, numWorkers int, dryRun bool) error {
 	if filePath == "" {
 		return fmt.Errorf("--file is required")
@@ -71,6 +73,7 @@ func runCleanZones(filePath string, pingTimeout time.Duration, numWorkers int, d
 	return nil
 }
 
+// kv creates a YAML mapping value node with the given key and string value.
 func kv(k, v string) *ast.MappingValueNode {
 	return &ast.MappingValueNode{
 		Key:   &ast.StringNode{Value: k},

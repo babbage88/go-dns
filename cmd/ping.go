@@ -12,10 +12,7 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
-//
-// ─── PING ───────────────────────────────────────────────────────────────────────
-//
-
+// ping sends a single ICMP echo request to the given IP and returns true if successful.
 func ping(ip string, timeout time.Duration) bool {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
@@ -34,6 +31,8 @@ type pingResult struct {
 	ok  bool
 }
 
+// runPingWorkers concurrently pings multiple hosts and returns the results.
+// It spawns the specified number of worker goroutines to process jobs in parallel.
 func runPingWorkers(
 	ctx context.Context,
 	jobs []pingJob,
@@ -103,6 +102,7 @@ func runPingWorkers(
 	return results
 }
 
+// collectNameserverJobs extracts all unique nameserver IP addresses from the YAML root node.
 func collectNameserverJobs(root *ast.MappingNode) []pingJob {
 	var jobs []pingJob
 
@@ -139,6 +139,7 @@ func collectNameserverJobs(root *ast.MappingNode) []pingJob {
 	return jobs
 }
 
+// collectDNSRecordJobs extracts all unique A and AAAA record IPs from DNS records and sub-zones.
 func collectDNSRecordJobs(root *ast.MappingNode) []pingJob {
 	var jobs []pingJob
 

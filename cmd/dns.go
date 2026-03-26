@@ -7,7 +7,8 @@ import (
 	"github.com/goccy/go-yaml/ast"
 )
 
-// ──────── PTR Record Generation ────────
+// createMissingPTRs generates reverse DNS (PTR) records for existing A records in the YAML.
+// It automatically creates PTR entries for IPs in the 10.0.0.0/8 range.
 func createMissingPTRs(root *ast.MappingNode) {
 	dnsNode := mappingValue(root, "dns_records")
 	if dnsNode == nil {
